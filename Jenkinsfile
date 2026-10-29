@@ -1,118 +1,157 @@
+
 pipeline {
     triggers {
-    pollSCM('H/1 * * * *')
-}
+        pollSCM('H/1 * * * *')
+    }
+
     agent { label 'student-laptop' }
+
     options {
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timeout(time: 5, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5'))
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '10',
+                artifactNumToKeepStr: '5'
+            )
+        )
     }
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+
                 dir('build') {
                     deleteDir()
                 }
-                
-script {
-    if (isUnix()) {
-        sh 'git log -1 --oneline && java -version && javac -version'
-    } else {
-        bat '''
-            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
-            git --version
-            where git
-            git log -1 --oneline
-            java -version
-            javac -version
-        '''
-    }
-}
 
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            git log -1 --oneline
+                            java -version
+                            javac -version
+                        '''
+                    } else {
+                        bat '''
+                            @echo off
+                            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                            git --version
+                            where git
+                            git log -1 --oneline
+                            java -version
+                            javac -version
+                        '''
+                    }
+                }
             }
         }
+
         stage('Submission setup') {
             steps {
-               
-script {
-    if (isUnix()) {
-        sh 'java ci/BuildEvidence.java prepare'
-    } else {
-        bat '''
-            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
-            java ci/BuildEvidence.java prepare
-        '''
-    }
-}
-
+                script {
+                    if (isUnix()) {
+                        sh 'java ci/BuildEvidence.java prepare'
+                    } else {
+                        bat '''
+                            @echo off
+                            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                            java ci/BuildEvidence.java prepare
+                        '''
+                    }
+                }
             }
         }
+
         stage('Test') {
             steps {
                 script {
                     if (isUnix()) {
                         sh 'java ci/Build.java test'
                     } else {
-                        bat 'java ci/Build.java test'
+                        bat '''
+                            @echo off
+                            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                            java ci/Build.java test
+                        '''
                     }
                 }
             }
+
             post {
                 always {
-                    junit testResults: 'build/test-results/TEST-FestPass.xml'
+                    junit(
+                        testResults: 'build/test-results/TEST-FestPass.xml',
+                        allowEmptyResults: false
+                    )
                 }
             }
         }
+
         stage('Build JAR') {
             steps {
                 script {
                     if (isUnix()) {
                         sh 'java ci/Build.java package'
                     } else {
-                        bat 'java ci/Build.java package'
+                        bat '''
+                            @echo off
+                            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                            java ci/Build.java package
+                        '''
                     }
                 }
             }
         }
+
         stage('Smoke test JAR') {
             steps {
                 script {
                     if (isUnix()) {
                         sh 'java ci/SmokeTest.java'
                     } else {
-                        bat 'java ci/SmokeTest.java'
+                        bat '''
+                            @echo off
+                            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                            java ci/SmokeTest.java
+                        '''
                     }
                 }
             }
         }
+
         stage('Save artifact') {
             steps {
-                archiveArtifacts artifacts: 'build/festpass.jar,build/build-info.txt,build/smoke-test.txt',
-                                 fingerprint: true
+                archiveArtifacts(
+                    artifacts: 'build/festpass.jar,build/build-info.txt,build/smoke-test.txt',
+                    fingerprint: true
+                )
             }
         }
     }
-    
-post {
-    always {
-        script {
-            withEnv(["ASSESSMENT_RESULT=${currentBuild.currentResult}"]) {
-                if (isUnix()) {
-                    sh 'java ci/BuildEvidence.java "$ASSESSMENT_RESULT"'
-                } else {
-                    bat '''
-                        set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
-                        java ci/BuildEvidence.java "%ASSESSMENT_RESULT%"
-                    '''
+
+    post {
+        always {
+            script {
+                withEnv(["ASSESSMENT_RESULT=${currentBuild.currentResult}"]) {
+                    if (isUnix()) {
+                        sh 'java ci/BuildEvidence.java "$ASSESSMENT_RESULT"'
+                    } else {
+                        bat '''
+                            @echo off
+                            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                            java ci/BuildEvidence.java "%ASSESSMENT_RESULT%"
+                        '''
+                    }
                 }
             }
-        }
-        archiveArtifacts artifacts: 'build/submission-evidence.csv',
-                         fingerprint: true
-    }
-}
 
+            archiveArtifacts(
+                artifacts: 'build/submission-evidence.csv',
+                fingerprint: true
+            )
+        }
+    }
 }
