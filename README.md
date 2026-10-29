@@ -145,3 +145,4 @@ test cases must be registered in the `FestPassTest` runner.
 `java ci/Build.java package` packages without tests; Jenkins runs it only after
 the Test stage succeeds. `verify` tests and packages locally. Run the separate
 smoke command after `verify` to validate the actual JAR.
+SCM polling verification
