@@ -16,24 +16,38 @@ pipeline {
                 dir('build') {
                     deleteDir()
                 }
-                script {
-                    if (isUnix()) {
-                        sh 'git log -1 --oneline && java -version && javac -version'
-                    } else {
-                        bat 'git log -1 --oneline && java -version && javac -version'
-                    }
-                }
+                
+script {
+    if (isUnix()) {
+        sh 'git log -1 --oneline && java -version && javac -version'
+    } else {
+        bat '''
+            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+            git --version
+            where git
+            git log -1 --oneline
+            java -version
+            javac -version
+        '''
+    }
+}
+
             }
         }
         stage('Submission setup') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh 'java ci/BuildEvidence.java prepare'
-                    } else {
-                        bat 'java ci/BuildEvidence.java prepare'
-                    }
-                }
+               
+script {
+    if (isUnix()) {
+        sh 'java ci/BuildEvidence.java prepare'
+    } else {
+        bat '''
+            set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+            java ci/BuildEvidence.java prepare
+        '''
+    }
+}
+
             }
         }
         stage('Test') {
@@ -81,18 +95,24 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            script {
-                withEnv(["ASSESSMENT_RESULT=${currentBuild.currentResult}"]) {
-                    if (isUnix()) {
-                        sh 'java ci/BuildEvidence.java "$ASSESSMENT_RESULT"'
-                    } else {
-                        bat 'java ci/BuildEvidence.java "%ASSESSMENT_RESULT%"'
-                    }
+    
+post {
+    always {
+        script {
+            withEnv(["ASSESSMENT_RESULT=${currentBuild.currentResult}"]) {
+                if (isUnix()) {
+                    sh 'java ci/BuildEvidence.java "$ASSESSMENT_RESULT"'
+                } else {
+                    bat '''
+                        set "PATH=C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;%PATH%"
+                        java ci/BuildEvidence.java "%ASSESSMENT_RESULT%"
+                    '''
                 }
             }
-            archiveArtifacts artifacts: 'build/submission-evidence.csv', fingerprint: true
         }
+        archiveArtifacts artifacts: 'build/submission-evidence.csv',
+                         fingerprint: true
     }
+}
+
 }
